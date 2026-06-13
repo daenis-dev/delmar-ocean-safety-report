@@ -1,4 +1,4 @@
-# delmar-beaches-guide
+# Delmar Ocean Safety Report
 
 Ocean-only activity safety guide for:
 
