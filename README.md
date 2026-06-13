@@ -1,6 +1,6 @@
 # Delmar Ocean Safety Report
 
-Ocean-only activity safety guide for:
+Ocean safety guide for:
 
 - Rehoboth Beach, DE
 - Bethany Beach, DE
