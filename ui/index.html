@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Delmar Ocean Safety Report</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+      * { box-sizing: border-box; }
+      body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; background: #eff6ff; color: #0f172a; }
+      header { background: linear-gradient(180deg, #dbeafe 0%, #bae6fd 100%); color: #075985; padding: 18px 16px 12px; text-align: center; border-bottom: 1px solid #e5e7eb; }
+      .header-title { font-family: 'Baloo 2', sans-serif; font-size: 26px; font-weight: 700; margin-bottom: 2px; }
+      .header-subtitle { font-size: 13px; color: #0369a1; opacity: 0.95; }
+      .page { display: grid; grid-template-columns: 320px 1fr; gap: 16px; padding: 16px; min-height: calc(100vh - 76px); }
+      .panel, .map-panel, .activities-panel { background: white; border-radius: 16px; box-shadow: 0 2px 10px rgba(2, 6, 23, 0.08); overflow: hidden; }
+      .panel-header { padding: 16px; border-bottom: 1px solid #e5e7eb; font-weight: 700; font-size: 18px; }
+      .left-panel { display: flex; flex-direction: column; }
+      .location-list { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+      .location-item { border: 1px solid #e5e7eb; border-left-width: 6px; border-radius: 12px; padding: 12px; cursor: pointer; background: #fff; transition: 0.15s ease; }
+      .location-item:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(2, 6, 23, 0.08); }
+      .location-item.active { outline: 2px solid #0284c7; }
+      .location-name { font-weight: 700; margin-bottom: 4px; }
+      .location-meta { font-size: 13px; color: #64748b; }
+      .right-panel { display: grid; grid-template-rows: 420px 1fr; gap: 16px; background: transparent; box-shadow: none; }
+      #map { width: 100%; height: 100%; min-height: 420px; }
+      .activities-content { padding: 16px; }
+      .selected-town-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+      .selected-town-subtitle { color: #64748b; font-size: 14px; margin-bottom: 16px; }
+      .cards-vertical { display: flex; flex-direction: column; gap: 12px; }
+      .card { background: white; border-radius: 12px; padding: 14px; cursor: pointer; box-shadow: 0 2px 6px rgba(2, 6, 23, 0.08); transition: 0.2s; border-left: 5px solid transparent; }
+      .card:hover { transform: scale(1.01); }
+      .card-title { font-weight: 800; margin-bottom: 4px; }
+      .card-summary { font-size: 14px; color: #334155; }
+      .card-meta { margin-top: 8px; font-size: 12px; color: #64748b; }
+      .danger-safe { border-left-color: #10b981; }
+      .danger-moderate { border-left-color: #f59e0b; }
+      .danger-dangerous { border-left-color: #ef4444; }
+      .danger-extreme { border-left-color: #7f1d1d; }
+      .details { display: none; margin-top: 10px; font-size: 14px; color: #334155; line-height: 1.45; }
+      .empty-state { padding: 24px 16px; color: #64748b; }
+      .legend { position: absolute; bottom: 36px; right: 16px; z-index: 500; background: rgba(255, 255, 255, 0.96); border-radius: 12px; padding: 10px 12px; box-shadow: 0 2px 10px rgba(2, 6, 23, 0.12); font-size: 12px; line-height: 1.5; }
+      .legend-row { display: flex; align-items: center; gap: 8px; }
+      .legend-swatch { width: 12px; height: 12px; border-radius: 3px; }
+      @media (max-width: 960px) { .page { grid-template-columns: 1fr; } .right-panel { grid-template-rows: 360px 1fr; } #map { min-height: 360px; } .legend { bottom: auto; top: 12px; right: 12px; padding: 8px 10px; font-size: 11px; line-height: 1.35; } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="header-title">Delmar Ocean Safety Report</div>
+      <div class="header-subtitle" id="headerDate"></div>
+    </header>
+
+    <div class="page">
+      <aside class="panel left-panel">
+        <div class="panel-header">Beaches</div>
+        <div class="location-list" id="locationList"></div>
+      </aside>
+
+      <main class="right-panel">
+        <section class="map-panel" style="position: relative;">
+          <div id="map"></div>
+          <div class="legend">
+            <div class="legend-row"><span class="legend-swatch" style="background:#10b981;"></span> Safe</div>
+            <div class="legend-row"><span class="legend-swatch" style="background:#f59e0b;"></span> Moderately Dangerous</div>
+            <div class="legend-row"><span class="legend-swatch" style="background:#ef4444;"></span> Dangerous</div>
+            <div class="legend-row"><span class="legend-swatch" style="background:#7f1d1d;"></span> Extremely Dangerous</div>
+          </div>
+        </section>
+
+        <section class="activities-panel">
+          <div class="panel-header">Ocean Activity Safety</div>
+          <div class="activities-content">
+            <div class="selected-town-title" id="selectedTownTitle">Select a beach</div>
+            <div class="selected-town-subtitle" id="selectedTownSubtitle">Click a beach on the left or a marker on the map.</div>
+            <div class="cards-vertical" id="activityCards"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+      const API_URL = "https://zenqhxiapt5qkaxcebt5d3m4sy0hiipj.lambda-url.us-west-2.on.aws/";
+
+      let activities = [];
+      let selectedBeach = null;
+      let map;
+      let beachMarkers = {};
+
+      const dangerRank = { "Safe": 1, "Moderately Dangerous": 2, "Dangerous": 3, "Extremely Dangerous": 4 };
+
+      const beaches = {
+        "Rehoboth Beach": { state: "DE", lat: 38.7209, lng: -75.0760 },
+        "Bethany Beach": { state: "DE", lat: 38.5396, lng: -75.0552 },
+        "Ocean City": { state: "MD", lat: 38.3365, lng: -75.0849 },
+      };
+
+      function getDangerClass(level) {
+        if (level === "Safe") return "danger-safe";
+        if (level === "Moderately Dangerous") return "danger-moderate";
+        if (level === "Dangerous") return "danger-dangerous";
+        return "danger-extreme";
+      }
+
+      function getDangerColor(level) {
+        if (level === "Safe") return "#10b981";
+        if (level === "Moderately Dangerous") return "#f59e0b";
+        if (level === "Dangerous") return "#ef4444";
+        if (level === "Extremely Dangerous") return "#7f1d1d";
+        return "#94a3b8";
+      }
+
+      function getBeachActivities(beachName) {
+        return activities.filter((a) => a.beachName === beachName);
+      }
+
+      function getBeachOverallDanger(beachName) {
+        const beachActivities = getBeachActivities(beachName);
+        if (!beachActivities.length) return null;
+        let worst = beachActivities[0].dangerLevel;
+        for (const activity of beachActivities) {
+          if (dangerRank[activity.dangerLevel] > dangerRank[worst]) worst = activity.dangerLevel;
+        }
+        return worst;
+      }
+
+      function buildLocationList() {
+        const locationList = document.getElementById("locationList");
+        locationList.innerHTML = "";
+
+        Object.keys(beaches).forEach((beachName) => {
+          const beachActivities = getBeachActivities(beachName);
+          const overallDanger = getBeachOverallDanger(beachName) || "Safe";
+          const item = document.createElement("div");
+          item.className = `location-item ${getDangerClass(overallDanger)} ${selectedBeach === beachName ? "active" : ""}`;
+          item.innerHTML = `
+            <div class="location-name">${beachName}</div>
+            <div class="location-meta">${overallDanger} &nbsp;•&nbsp; ${beaches[beachName].state} &nbsp;•&nbsp; ${beachActivities.length} report${beachActivities.length === 1 ? "" : "s"}</div>
+          `;
+          item.onclick = () => selectBeach(beachName);
+          locationList.appendChild(item);
+        });
+      }
+
+      function buildActivityCards(beachName) {
+        const cards = document.getElementById("activityCards");
+        const beachActivities = getBeachActivities(beachName);
+        cards.innerHTML = "";
+
+        if (!beachActivities.length) {
+          cards.innerHTML = `<div class="empty-state">No ocean activity safety report is available for ${beachName} yet.</div>`;
+          return;
+        }
+
+        beachActivities.forEach((activity) => {
+          const card = document.createElement("div");
+          card.className = `card ${getDangerClass(activity.dangerLevel)}`;
+          card.innerHTML = `
+            <div class="card-title">${activity.name}: ${activity.dangerLevel}</div>
+            <div class="card-summary">${activity.weatherSummary}</div>
+            <div class="card-meta">Updated ${activity.recordedAt} UTC</div>
+            <div class="details">${activity.explanation}</div>
+          `;
+          card.onclick = () => {
+            const details = card.querySelector(".details");
+            details.style.display = details.style.display === "block" ? "none" : "block";
+          };
+          cards.appendChild(card);
+        });
+      }
+
+      function selectBeach(beachName) {
+        selectedBeach = beachName;
+        document.getElementById("selectedTownTitle").textContent = beachName;
+        document.getElementById("selectedTownSubtitle").textContent = "Ocean-only safety report for swimming, surfing, bodyboarding, wading, and general beach water use.";
+        buildLocationList();
+        buildActivityCards(beachName);
+
+        Object.entries(beachMarkers).forEach(([name, marker]) => {
+          const level = getBeachOverallDanger(name) || "Safe";
+          marker.setStyle({ radius: name === beachName ? 14 : 10, fillColor: getDangerColor(level), color: name === beachName ? "#0f172a" : "#ffffff", weight: name === beachName ? 3 : 2 });
+        });
+
+        const beach = beaches[beachName];
+        map.setView([beach.lat, beach.lng], 11);
+      }
+
+      function initMap() {
+        map = L.map("map", { scrollWheelZoom: true }).setView([38.53, -75.08], 9);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: '&copy; OpenStreetMap contributors',
+        }).addTo(map);
+
+        Object.entries(beaches).forEach(([name, beach]) => {
+          const level = getBeachOverallDanger(name) || "Safe";
+          const marker = L.circleMarker([beach.lat, beach.lng], {
+            radius: 10,
+            fillColor: getDangerColor(level),
+            color: "#ffffff",
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.9,
+          }).addTo(map);
+          marker.bindPopup(`<strong>${name}</strong><br>${level}`);
+          marker.on("click", () => selectBeach(name));
+          beachMarkers[name] = marker;
+        });
+      }
+
+      async function loadActivities() {
+        try {
+          const response = await fetch(API_URL);
+          const data = await response.json();
+          activities = data.activities || [];
+        } catch (error) {
+          console.error("Failed to load ocean activity safety data", error);
+          activities = [];
+        }
+      }
+
+      async function init() {
+        const now = new Date();
+        document.getElementById("headerDate").textContent = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+        await loadActivities();
+        buildLocationList();
+        initMap();
+        selectBeach("Rehoboth Beach");
+      }
+
+      init();
+    </script>
+  </body>
+</html>

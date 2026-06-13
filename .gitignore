@@ -1,0 +1,3 @@
+local/db-secret.json
+jumpbox.pem
+.DS_Store
