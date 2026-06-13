@@ -45,6 +45,33 @@
       .legend-row { display: flex; align-items: center; gap: 8px; }
       .legend-swatch { width: 12px; height: 12px; border-radius: 3px; }
       @media (max-width: 960px) { .page { grid-template-columns: 1fr; } .right-panel { grid-template-rows: 360px 1fr; } #map { min-height: 360px; } .legend { bottom: auto; top: 12px; right: 12px; padding: 8px 10px; font-size: 11px; line-height: 1.35; } }
+      @media (max-width: 960px) {
+        .page {
+          grid-template-columns: 1fr;
+        }
+
+        .right-panel {
+          grid-template-rows: 360px 1fr;
+        }
+
+        #map {
+          min-height: 360px;
+        }
+
+        .legend {
+          bottom: auto;
+          top: 12px;
+          right: 12px;
+          padding: 8px 10px;
+          font-size: 11px;
+          line-height: 1.35;
+        }
+
+        .header-title {
+          font-size: 22px;
+          white-space: nowrap;
+        }
+      }
     </style>
   </head>
   <body>
@@ -71,7 +98,6 @@
         </section>
 
         <section class="activities-panel">
-          <div class="panel-header">Ocean Activity Safety</div>
           <div class="activities-content">
             <div class="selected-town-title" id="selectedTownTitle">Select a beach</div>
             <div class="selected-town-subtitle" id="selectedTownSubtitle">Click a beach on the left or a marker on the map.</div>
@@ -98,6 +124,34 @@
         "Bethany Beach": { state: "DE", lat: 38.5396, lng: -75.0552 },
         "Ocean City": { state: "MD", lat: 38.3365, lng: -75.0849 },
       };
+
+      function isMobileView() {
+        return window.matchMedia("(max-width: 960px)").matches;
+      }
+
+      function scrollToBottom() {
+        window.setTimeout(() => {
+          window.scrollTo({
+            top: document.documentElement.scrollHeight,
+            behavior: "smooth",
+          });
+        }, 200);
+      }
+
+      function formatLocalDateTime(utcTimestamp) {
+        if (!utcTimestamp) return "";
+
+        const date = new Date(
+          utcTimestamp.replace(" ", "T") + "Z"
+        );
+
+        return date.toLocaleString(undefined, {
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit"
+        });
+      }
 
       function getDangerClass(level) {
         if (level === "Safe") return "danger-safe";
@@ -138,15 +192,19 @@
           const item = document.createElement("div");
           item.className = `location-item ${getDangerClass(overallDanger)} ${selectedBeach === beachName ? "active" : ""}`;
           item.innerHTML = `
-            <div class="location-name">${beachName}</div>
-            <div class="location-meta">${overallDanger} &nbsp;•&nbsp; ${beaches[beachName].state} &nbsp;•&nbsp; ${beachActivities.length} report${beachActivities.length === 1 ? "" : "s"}</div>
+            <div class="location-name">
+              ${beachName}, ${beaches[beachName].state}
+            </div>
+            <div class="location-meta">
+              ${overallDanger}
+            </div>
           `;
           item.onclick = () => selectBeach(beachName);
           locationList.appendChild(item);
         });
       }
 
-      function buildActivityCards(beachName) {
+      function buildActivityCards(beachName, openDetails = false) {
         const cards = document.getElementById("activityCards");
         const beachActivities = getBeachActivities(beachName);
         cards.innerHTML = "";
@@ -162,8 +220,10 @@
           card.innerHTML = `
             <div class="card-title">${activity.name}: ${activity.dangerLevel}</div>
             <div class="card-summary">${activity.weatherSummary}</div>
-            <div class="card-meta">Updated ${activity.recordedAt} UTC</div>
-            <div class="details">${activity.explanation}</div>
+            <div class="card-meta">
+              Updated ${formatLocalDateTime(activity.recordedAt)}
+            </div>
+            <div class="details" style="display: ${openDetails ? "block" : "none"};">${activity.explanation}</div>
           `;
           card.onclick = () => {
             const details = card.querySelector(".details");
@@ -173,20 +233,31 @@
         });
       }
 
-      function selectBeach(beachName) {
+      function selectBeach(beachName, shouldScroll = true) {
         selectedBeach = beachName;
         document.getElementById("selectedTownTitle").textContent = beachName;
-        document.getElementById("selectedTownSubtitle").textContent = "Ocean-only safety report for swimming, surfing, bodyboarding, wading, and general beach water use.";
+        document.getElementById("selectedTownSubtitle").textContent =
+          "Ocean safety report for swimming, surfing, bodyboarding, wading, and general beach water use. Always confirm safety with a lifeguard before entering the water.";
+
         buildLocationList();
-        buildActivityCards(beachName);
+        buildActivityCards(beachName, true);
 
         Object.entries(beachMarkers).forEach(([name, marker]) => {
           const level = getBeachOverallDanger(name) || "Safe";
-          marker.setStyle({ radius: name === beachName ? 14 : 10, fillColor: getDangerColor(level), color: name === beachName ? "#0f172a" : "#ffffff", weight: name === beachName ? 3 : 2 });
+          marker.setStyle({
+            radius: name === beachName ? 14 : 10,
+            fillColor: getDangerColor(level),
+            color: name === beachName ? "#0f172a" : "#ffffff",
+            weight: name === beachName ? 3 : 2,
+          });
         });
 
         const beach = beaches[beachName];
         map.setView([beach.lat, beach.lng], 11);
+
+        if (shouldScroll) {
+          scrollToBottom();
+        }
       }
 
       function initMap() {
@@ -228,7 +299,7 @@
         await loadActivities();
         buildLocationList();
         initMap();
-        selectBeach("Rehoboth Beach");
+        selectBeach("Rehoboth Beach", false);
       }
 
       init();
